@@ -1,0 +1,120 @@
+#!/usr/bin/env node
+const version = require('../package.json').version;
+const path = require('path');
+const figlet = require('figlet');
+const printer = require('@darkobits/lolcatjs').default;
+const program = require('commander');
+const inquirer = require('inquirer');
+const chalk = require('chalk');
+const json2ts = require('json2ts');
+const ora = require('ora');
+const shell = require('shelljs');
+const download = require('download-git-repo');
+const templateUrl = 'direct:https://github.com/RenektonChr/demo.git';
+
+const txt = figlet.textSync('Renekton CLI') + "\n" + "renekton 脚手架" + version;
+const result = printer.fromString(txt);
+
+program.version(result, "-v, --version");
+program.option('init', '🐶 初始化项目...');
+program.option('json2ts', '🏆 将RD的接口生成TS...');
+
+const bindHandler = {
+  init(parms) {
+    inquirer
+      .prompt([
+        {
+          type: 'text',
+          name: 'dirname',
+          message: '📁 请输入项目名称'
+        },
+        {
+          type: 'list',
+          name: 'jskind',
+          message: "💼 请选择该项目语言",
+          choices: [
+            "✔ ES6", "✔ TypeScript", "✔ CoffeeScript"
+          ]
+        }
+      ])
+      .then(answers => {
+        // Use user feedback for... whatever!!
+        /**
+         * 1. git准备一个可扩展性强的项目
+         * 2. git下载哪一个包
+         * 3. shelljs根据用户的选择对你下载的包进行删除和修改
+         * 4. 在用户的项目目录想创建项目
+         * 5. 引导用户开发使用
+         */
+
+        const _dirname = answers.dirname;
+        if (_dirname) {
+          const spinner = ora('⏰download template···');
+          spinner.start();
+          const _pwd = shell.pwd().stdout;
+          const _projectPath = path.join(_pwd, `/${_dirname}`);
+          shell.cd(_pwd);
+          shell.rm('-rf', _projectPath);
+          shell.mkdir(_dirname);
+          download(templateUrl, _projectPath, { 'clone': true }, function(err) {
+            spinner.stop();
+            if(err) {
+              // 下载失败之后提示，并输出错误信息。
+              console.log(chalk.red('🧎‍♂️ 很遗憾，模板下载失败！'));
+              console.log(err.message);
+            }else {
+              shell.sed("-i", "demo", _dirname, _projectPath + "/package.json");
+              // 下载成功后，给用户反馈
+              console.log('download success!\n\n\n');
+              console.log(chalk.blue(`cd ${_dirname}`));
+              console.log(chalk.blue(`npm install`));
+              console.log(chalk.blue(`npm start(😔 相应的脚手架命令还在开发中，敬请期待...)`));
+            }
+          });
+        }
+      })
+      .catch(error => {
+        if (error.isTtyError) {
+          // Prompt couldn't be rendered in the current environment
+        } else {
+          // Something else went wrong
+        }
+      });
+  },
+  json2ts(jsonurl) {
+    console.log('接口地址：', jsonurl);
+    const spinner = ora('⏰ 正在生成代码，请稍后···');
+    spinner.start();
+    const contentJson = {
+      code: 1,
+      info: {
+        message: '请求成功',
+        data: [
+          {
+            num: '1',
+            title: '3号仓库'
+          }
+        ]
+      }
+    };
+    const result = json2ts.convert(JSON.stringify(contentJson));
+    console.log(result);
+    spinner.stop();
+  }
+};
+
+program.usage("<cmd> [env]")
+  .arguments("<cmd> [env]")
+  .action(function (cmd, otherParms) {
+    const handler = bindHandler[cmd];
+    if (handler) {
+      handler(otherParms);
+    } else {
+      // console.log("暂未实现" + cmd);
+      console.log(chalk.yellow("🙏 非常遗憾") + "【" + chalk.red(cmd) + "】" + chalk.yellow("没有实现···"));
+    }
+  });
+
+program.parse(process.argv);
+
+// console.log(result);
